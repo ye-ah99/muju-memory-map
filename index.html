@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>무주 기억지도</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Serif KR', Georgia, serif;
+      background-color: #1a1208;
+      color: #f0e6c8;
+      min-height: 100vh;
+    }
+
+    /* ── 인트로 화면 ── */
+    #intro {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 24px;
+      text-align: center;
+      background: radial-gradient(ellipse at center, #2e1f0a 0%, #1a1208 70%);
+    }
+
+    #intro h1 {
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      line-height: 2;
+      color: #d4b97a;
+      max-width: 300px;
+      margin-bottom: 16px;
+    }
+
+    #intro .subtitle {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #f0e6c8;
+      margin-bottom: 48px;
+      line-height: 1.7;
+      max-width: 320px;
+    }
+
+    .btn-main {
+      background: #8b5e1a;
+      color: #fff8ec;
+      border: none;
+      padding: 14px 36px;
+      font-size: 1rem;
+      letter-spacing: 0.12em;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-main:hover { background: #a3711f; }
+
+    /* ── 지도 화면 ── */
+    #map-screen {
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 24px 16px;
+      background: #1a1208;
+    }
+
+    #map-screen h2 {
+      text-align: center;
+      font-size: 1.1rem;
+      color: #d4b97a;
+      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+    }
+
+    #map-screen .map-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #a09070;
+      margin-bottom: 20px;
+    }
+
+    .map-container {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      background: #2a1f0d;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #5a3e1a;
+    }
+
+    /* SVG 지도 배경 */
+    .map-container svg {
+      width: 100%;
+      display: block;
+    }
+
+    /* 마커 버튼 */
+    .marker {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .marker-dot {
+      width: 22px;
+      height: 22px;
+      background: #e8562a;
+      border: 3px solid #fff8ec;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(232,86,42,0.7);
+      transition: transform 0.15s;
+    }
+
+    .marker:hover .marker-dot { transform: scale(1.25); }
+
+    .marker-label {
+      background: rgba(26,18,8,0.88);
+      color: #f0e6c8;
+      font-size: 0.65rem;
+      padding: 3px 7px;
+      border-radius: 10px;
+      margin-top: 4px;
+      white-space: nowrap;
+      border: 1px solid #8b5e1a;
+    }
+
+    /* ── 스토리 패널 ── */
+    #story-panel {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      max-height: 72vh;
+      background: #231809;
+      border-top: 2px solid #8b5e1a;
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px;
+      overflow-y: auto;
+      z-index: 100;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+
+    #story-panel .close-btn {
+      position: absolute;
+      top: 14px; right: 18px;
+      background: none;
+      border: none;
+      color: #a09070;
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    #story-panel h3 {
+      font-size: 1.1rem;
+      color: #d4b97a;
+      margin-bottom: 4px;
+    }
+
+    #story-panel .location-tag {
+      font-size: 0.75rem;
+      color: #8b5e1a;
+      margin-bottom: 16px;
+    }
+
+    #story-panel p {
+      font-size: 0.88rem;
+      line-height: 1.9;
+      color: #d8cdb0;
+      margin-bottom: 12px;
+    }
+
+    #story-panel .source {
+      font-size: 0.72rem;
+      color: #7a6a50;
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 90;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 인트로 화면 -->
+<section id="intro">
+  <h1>무주의 과거와 미래를 잇는 기억의 길</h1>
+  <p class="subtitle">그곳에 담긴 무주의 이야기를<br>만나보시겠습니까?</p>
+  <button class="btn-main" onclick="showMap()">🗺 기억지도 보기</button>
+</section>
+
+<!-- 지도 화면 -->
+<section id="map-screen">
+  <h2>무주 기억지도</h2>
+  <p class="map-sub">전북특별자치도 무주군 무주읍 · 장소를 눌러 이야기를 만나보세요</p>
+
+  <div class="map-container" id="mapBox">
+    <!-- 배경 지도: OpenStreetMap 스타일 SVG 대략 지도 -->
+    <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+      <!-- 배경 -->
+      <rect width="400" height="400" fill="#2e2010"/>
+
+      <!-- 남대천 강 -->
+      <path d="M 0 230 Q 80 220 160 235 Q 240 250 320 240 Q 360 235 400 245"
+            stroke="#3d6b8f" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.7"/>
+
+      <!-- 도로 -->
+      <line x1="80" y1="0" x2="100" y2="400" stroke="#4a3820" stroke-width="5"/>
+      <line x1="0" y1="190" x2="400" y2="200" stroke="#4a3820" stroke-width="5"/>
+      <line x1="0" y1="270" x2="400" y2="265" stroke="#4a3820" stroke-width="3"/>
+
+      <!-- 지역 블록들 -->
+      <rect x="90" y="100" width="200" height="120" rx="4" fill="#352510" opacity="0.6"/>
+
+      <!-- 지명 텍스트 -->
+      <text x="200" y="80" text-anchor="middle" fill="#a09070" font-size="13" font-family="serif">무주읍</text>
+      <text x="200" y="370" text-anchor="middle" fill="#3d6b8f" font-size="10" font-family="serif" opacity="0.9">남대천</text>
+      <text x="60" y="310" text-anchor="middle" fill="#7a6a50" font-size="9" font-family="serif">당산리</text>
+
+      <!-- 강 이름 라벨 -->
+    </svg>
+
+    <!-- 마커 1: 무주문화극장 (읍내 중심 상권 위치) -->
+    <div class="marker" style="left:52%; top:42%;" onclick="openStory('theater')">
+      <div class="marker-dot"></div>
+      <div class="marker-label">📽 무주문화극장</div>
+    </div>
+
+    <!-- 마커 2: 도깨비시장 (파리바게트 위치, 읍내) -->
+    <div class="marker" style="left:62%; top:50%;" onclick="openStory('market')">
+      <div class="marker-dot"></div>
+      <div class="marker-label">🌙 도깨비시장</div>
+    </div>
+
+    <!-- 마커 3: 쪽다리 (당산리 남대천 근처) -->
+    <div class="marker" style="left:35%; top:68%;" onclick="openStory('bridge')">
+      <div class="marker-dot"></div>
+      <div class="marker-label">🌉 쪽다리</div>
+    </div>
+
+    <!-- 마커 4: 숲골·진농산 (당산리) -->
+    <div class="marker" style="left:22%; top:72%;" onclick="openStory('forest')">
+      <div class="marker-dot"></div>
+      <div class="marker-label">🌳 숲골·진농산</div>
+    </div>
+  </div>
+</section>
+
+<!-- 배경 오버레이 -->
+<div class="overlay" id="overlay" onclick="closeStory()"></div>
+
+<!-- 스토리 패널 -->
+<div id="story-panel">
+  <button class="close-btn" onclick="closeStory()">✕</button>
+  <h3 id="story-title"></h3>
+  <div class="location-tag" id="story-location"></div>
+  <div id="story-body"></div>
+</div>
+
+<script>
+  const stories = {
+    theater: {
+      title: "무주문화극장",
+      location: "현 무주읍 단천로 100 일대 (손칼·복권방 자리)",
+      body: `<p>현재 손칼과 복권방이 있는 곳은 과거 무주문화극장이 있던 문화의 중심지였다. 당시 학생들은 선생님 몰래 영화를 보러 갔다가 들켜 벌을 받기도 했다.</p>
+             <p>1960년대 시대적 흐름에 따라 무주문화극장도 호황기를 누리며 주로 6·25 전쟁 소재 영화나 눈물샘을 자극하는 영화들을 상영하였다. 입장료는 약 100원, 영화 신작 홍보는 무주 지역 구석구석을 다니며 육성으로 하였다.</p>
+             <p>그러나 1960년대 말에서 1970년대 초 텔레비전이 보급되기 시작하면서 영화 관객이 줄어들기 시작하였다. 영화 상영을 통한 극장 수입이 저조해지면서 무주문화극장은 심각한 경영난으로 운영이 어려워짐에 따라 1977년 폐업 신고를 하며 역사의 뒤안길로 사라졌다.</p>
+             <p>현재는 무주군 무주읍 단천로 100에 위치한 무주읍 아트 사진관 건물이 무주문화극장 자리를 대신하고 있다.</p>
+             <p class="source">출처: 한국학중앙연구원 – 향토문화전자대전</p>`
+    },
+    market: {
+      title: "도깨비시장",
+      location: "현 파리바게트 위치 (무주읍)",
+      body: `<p>현 파리바게트가 있는 위치에는 도깨비시장이 있었다.</p>
+             <p>도깨비시장은 상설 시장이었으며, 새벽 4~5시에 시작해서 동이 트면 흔적도 없이 사라진다고 하여 '도깨비시장'이라는 이름이 붙었다고 한다.</p>
+             <p>근처에 대형마트가 생기면서 도깨비시장 또한 흔적도 없이 사라졌다.</p>`
+    },
+    bridge: {
+      title: "쪽다리",
+      location: "당산리 일대",
+      body: `<p>과거 당산리 쪽에는 긴 널조각 하나로 걸쳐 놓은 ㄷ다리인 '쪽다리'가 있었다.</p>
+             <p>비가 오면 다리가 떠내려가기도 했으며, 땔감을 지고 건너야 했던 주민들에게는 위험하고 힘든 길이었다.</p>`
+    },
+    forest: {
+      title: "숲골 · 진농산",
+      location: "당산리 일대",
+      body: `<p>당산리에는 '숯골'이라고 불리던 곳으로 맑은 물이 흐르던 공간과 큰 정자나무가 있어 주민들이 쉬어가며 이야기를 나누던 마을의 쉼터 역할을 해주었던 진농산이 있었다.</p>
+             <p>하지만 현재는 복개로 인해 예전의 자연 모습과 공간의 흔적이 사라졌다.</p>`
+    }
+  };
+
+  function showMap() {
+    document.getElementById('intro').style.display = 'none';
+    const ms = document.getElementById('map-screen');
+    ms.style.display = 'flex';
+  }
+
+  function openStory(key) {
+    const s = stories[key];
+    document.getElementById('story-title').textContent = s.title;
+    document.getElementById('story-location').textContent = '📍 ' + s.location;
+    document.getElementById('story-body').innerHTML = s.body;
+    document.getElementById('story-panel').style.display = 'block';
+    document.getElementById('overlay').style.display = 'block';
+  }
+
+  function closeStory() {
+    document.getElementById('story-panel').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+  }
+</script>
+</body>
+</html>
